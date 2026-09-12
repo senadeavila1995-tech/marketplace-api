@@ -25,8 +25,25 @@ public class ProductsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var products = await _context.Products
-            .AsNoTracking()
+        var query = _context.Products
+            .AsNoTracking();
+
+        // SELLER solamente puede consultar los productos
+        // pertenecientes a su propia tienda.
+        if (User.IsInRole("SELLER"))
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
+                return Unauthorized("Token inválido");
+
+            query = query.Where(p =>
+                p.Store != null &&
+                p.Store.UserId == userId
+            );
+        }
+
+        var products = await query
             .Select(p => new
             {
                 p.Id,
